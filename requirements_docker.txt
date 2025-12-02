@@ -1,0 +1,27 @@
+# Docker용 의존성 (베이스 이미지에 PyTorch 포함)
+# torch, torchaudio는 베이스 이미지에서 제공됨
+
+numpy==2.1.2
+
+# Model & Data Handling
+huggingface_hub==1.1.7
+safetensors==0.7.0
+lhotse==1.32.1
+
+# Audio Processing
+vocos==0.1.0
+pydub==0.25.1
+soundfile==0.13.1
+
+# Text Processing & Tokenization
+cn2an==0.5.23
+inflect==7.5.0
+jieba==0.42.1
+pypinyin==0.55.0
+# piper_phonemize는 Dockerfile에서 별도 설치
+
+# Serving
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+pyyaml==6.0.2

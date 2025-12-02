@@ -194,7 +194,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 # Model files
-espeak/
+
 *.pt
 *.pth
 *.onnx

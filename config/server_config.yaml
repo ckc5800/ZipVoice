@@ -1,0 +1,125 @@
+# ZipVoice 서버 통합 설정 파일
+
+# ============================================
+# 추론 설정
+# ============================================
+inference:
+  # 모델 관련
+  model_dir: "D:/12-02/espeak"
+  checkpoint_name: "epoch-91.pt"
+  model_name: "zipvoice_dialog"  # zipvoice_dialog, zipvoice_dialog_stereo
+  
+  # 토크나이저 설정
+  tokenizer:
+    type: "espeak"  # espeak, dialog, emilia
+    lang: "en-us"   # espeak 언어 코드
+  
+  # 오디오 파라미터
+  audio:
+    sampling_rate: 24000
+    target_rms: 0.1
+    feat_scale: 0.1
+  
+  # Vocoder 설정
+  vocoder:
+    model: "charactr/vocos-mel-24khz"
+    path: null  # 로컬 경로 (선택사항)
+  
+  # 추론 파라미터
+  generation:
+    num_steps: 16            # 샘플링 단계 수
+    guidance_scale: 1.5      # Classifier-free guidance 스케일
+    speed: 1.0               # 음성 속도 (1.0=정상, >1.0=빠르게)
+    t_shift: 0.5             # 시간 쉬프트 파라미터
+  
+  # 기본 Prompt 설정 (선택사항)
+  default_prompt:
+    text: null               # 기본 참조 텍스트
+    audio_path: null         # 기본 참조 오디오 경로
+
+# ============================================
+# Triton 서버 설정
+# ============================================
+triton:
+  model_name: "zipvoice_dialog"
+  
+  # 포트 설정
+  http_port: 7000
+  grpc_port: 7001
+  metrics_port: 7002
+  
+  # 배치 설정
+  max_batch_size: 4
+  max_queue_delay_ms: 10000
+  
+  # TensorRT 설정
+  trt_engine_path: null     # TensorRT 엔진 경로 (선택사항)
+  
+  # 로깅
+  log_verbose: 0            # 0=INFO, 1=WARNING, 2=ERROR
+  
+  # Speaker Cache 설정
+  speaker_cache:
+    enabled: false
+    prompt_text: null
+    prompt_audio: null
+
+# ============================================
+# FastAPI 서버 설정
+# ============================================
+api:
+  # 서버 설정
+  host: "0.0.0.0"
+  port: 7080
+  workers: 1
+  reload: false
+  
+  # Triton 클라이언트 설정
+  triton_url: "localhost:7000"
+  triton_timeout: 60        # 초
+  
+  # 업로드 제한
+  max_file_size_mb: 50
+  allowed_audio_formats: ["wav", "mp3", "flac"]
+
+# ============================================
+# 로깅 설정
+# ============================================
+logging:
+  # 레벨: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # 파일 설정
+  log_dir: "logs"
+  max_file_size_mb: 10
+  backup_count: 30
+  
+  # 포맷
+  json_format: true
+  console_output: true
+  
+  # 로그 필터
+  # 특정 모듈의 로그 레벨 조정
+  module_levels:
+    uvicorn: "WARNING"
+    fastapi: "INFO"
+
+# ============================================
+# Prometheus 모니터링 설정
+# ============================================
+prometheus:
+  enabled: true
+  # Triton metrics_port에서 자동 노출됨
+  # 추가 커스텀 메트릭 설정
+  custom_metrics:
+    track_inference_time: true
+    track_queue_size: true
+    track_error_rate: true
+
+# ============================================
+# 환경별 설정 오버라이드
+# ============================================
+# 환경 변수로 오버라이드 가능:
+# ZIPVOICE_API_PORT=9000
+# ZIPVOICE_LOGGING_LEVEL=DEBUG
+# ZIPVOICE_TRITON_HTTP_PORT=8001

@@ -1,0 +1,59 @@
+# Docker 관련 파일
+.dockerignore
+Dockerfile
+docker-compose*.yml
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 가상환경
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# 로그 및 데이터
+logs/
+*.log
+results/
+results_*/
+
+# 모델 체크포인트 (너무 큼, 볼륨 마운트로 처리)
+espeak/*.pt
+espeak/*.pth
+
+# 테스트 파일
+test_*.py
+verify_*.py
+test_*.wav
+*.tsv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 문서
+README.md
+*.md
+docs/
+
+# 기타
+*.bak
+*.tmp
+.env

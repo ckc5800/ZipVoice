@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # Triton 서버 (PyTorch 모델)
+  triton-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zipvoice-triton:latest
+    container_name: zipvoice-triton
+
+    # 공유 메모리 설정 (PyTorch DataLoader 등에 필요)
+    # host: 호스트의 /dev/shm 사용 (가장 큰 크기)
+    # 또는 특정 크기 지정: '8gb', '16gb' 등
+    ipc: host
+
+    ports:
+      - "7000:7000" # HTTP API
+      - "7001:7001" # gRPC API
+      - "7002:7002" # Prometheus metrics
+
+    environment:
+      - PYTHONIOENCODING=utf-8
+      - CUDA_VISIBLE_DEVICES=0
+      # PyTorch 성능 최적화
+      - OMP_NUM_THREADS=8
+      - MKL_NUM_THREADS=8
+      # CUDA 최적화
+      - CUDA_LAUNCH_BLOCKING=0
+
+    # GPU 및 리소스 설정
+    deploy:
+      resources:
+        limits:
+          # 메모리 제한 (시스템에 따라 조정)
+          # memory: 32G
+          cpus: '8'
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: [ '0' ]
+              capabilities: [ gpu ]
+          # 최소 메모리 (시스템에 따라 조정)
+          # memory: 16G
+          cpus: '4'
+
+    # ulimit 설정 (파일 디스크립터, 메모리 잠금 등)
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    # OOM killer 비활성화 (선택사항, 주의 필요)
+    # oom_kill_disable: true
+
+    command: >
+      python runtime/nvidia_triton/pytriton_server.py --model_dir /workspace/espeak --model_name zipvoice_dialog --port 7000
+
+    volumes:
+      # 설정 파일 (외부 수정 가능)
+      - ./config:/workspace/config
+      # 로그 파일 (외부 확인 가능)
+      - ./logs:/workspace/logs
+      # 모델 & 토크나이저 (큰 파일, 볼륨 마운트)
+      - ./espeak:/workspace/espeak
+      # 참조 오디오 샘플 (선택사항)
+      - ./assets:/workspace/assets:ro
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7000/v2/health/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # 모델 로딩 시간 고려
+
+    networks:
+      - zipvoice-net
+
+    restart: unless-stopped
+
+    # 로깅 설정 (디스크 공간 관리)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # FastAPI 서버
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zipvoice-triton:latest
+    container_name: zipvoice-api
+
+    ports:
+      - "7080:7080" # REST API
+
+    environment:
+      - PYTHONIOENCODING=utf-8
+      - ZIPVOICE_API_TRITON_URL=triton-server:7000
+      - ZIPVOICE_API_PORT=7080
+      # Uvicorn 워커 설정
+      - WEB_CONCURRENCY=4
+
+    # 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    depends_on:
+      triton-server:
+        condition: service_healthy
+
+    command: >
+      python runtime/api_server.py
+
+    volumes:
+      # 설정 파일 (외부 수정 가능)
+      - ./config:/workspace/config
+      # 로그 파일 (외부 확인 가능)
+      - ./logs:/workspace/logs
+      # 결과 저장 (선택사항)
+      - ./results:/workspace/results
+
+    networks:
+      - zipvoice-net
+
+    restart: unless-stopped
+
+    # 로깅 설정
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+networks:
+  zipvoice-net:
+    driver: bridge

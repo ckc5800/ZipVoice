@@ -11,9 +11,8 @@ from pytriton.model_config import DynamicBatcher, ModelConfig, Tensor
 from pytriton.triton import Triton, TritonConfig
 
 from vocos import Vocos
-from zipvoice.models.zipvoice import ZipVoice
-from zipvoice.models.zipvoice_distill import ZipVoiceDistill
-from zipvoice.tokenizer.tokenizer import EmiliaTokenizer
+from zipvoice.models.zipvoice_dialog import ZipVoiceDialog
+from zipvoice.tokenizer.tokenizer import EspeakTokenizer
 from zipvoice.utils.checkpoint import load_checkpoint
 from zipvoice.utils.feature import VocosFbank
 from zipvoice.utils.infer import rms_norm
@@ -27,8 +26,8 @@ class ZipVoiceModel:
         self,
         model_dir,
         model_name,
-        trt_engine_path,
         reference_audio_sample_rate,
+        trt_engine_path=None,
         use_speaker_cache=False,
         prompt_text=None,
         prompt_audio=None,
@@ -40,7 +39,7 @@ class ZipVoiceModel:
         self.model_name = model_name
 
         token_file = os.path.join(self.model_dir, "tokens.txt")
-        self.tokenizer = EmiliaTokenizer(token_file=token_file)
+        self.tokenizer = EspeakTokenizer(token_file=token_file, lang="en-us")
 
         model_config_path = os.path.join(self.model_dir, "model.json")
         with open(model_config_path, "r") as f:
@@ -48,21 +47,23 @@ class ZipVoiceModel:
 
         tokenizer_config = {"vocab_size": self.tokenizer.vocab_size, "pad_id": self.tokenizer.pad_id}
 
-        if self.model_name == "zipvoice":
-            self.model = ZipVoice(**model_config["model"], **tokenizer_config)
+        if self.model_name == "zipvoice_dialog":
+            self.model = ZipVoiceDialog(**model_config["model"], **tokenizer_config)
             self.num_step = 16
             self.guidance_scale = 1.0
         else:
-            self.model = ZipVoiceDistill(**model_config["model"], **tokenizer_config)
-            self.num_step = 4
-            self.guidance_scale = 3.0
+            raise ValueError(f"Unsupported model name: {self.model_name}")
 
-        model_ckpt = os.path.join(self.model_dir, "model.pt")
+        model_ckpt = os.path.join(self.model_dir, "epoch-91.pt")
         load_checkpoint(filename=model_ckpt, model=self.model, strict=True)
 
         self.model = self.model.to(self.device)
         self.model.eval()
-        load_trt(self.model, trt_engine_path)
+        
+        if trt_engine_path and os.path.exists(trt_engine_path):
+            load_trt(self.model, trt_engine_path)
+        else:
+            LOGGER.info("TensorRT engine not found or not provided. Using PyTorch inference.")
 
         self.feature_extractor = VocosFbank()
         self.sampling_rate = model_config["feature"]["sampling_rate"]
@@ -71,9 +72,7 @@ class ZipVoiceModel:
         if self.reference_sample_rate != self.sampling_rate:
             self.resampler = torchaudio.transforms.Resample(
                 self.reference_sample_rate, self.sampling_rate
-            )  # .to(
-            # self.device
-            # )
+            )
         else:
             self.resampler = None
 
@@ -238,8 +237,8 @@ class ZipVoiceModel:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, required=True, help="Path to the model directory.")
-    parser.add_argument("--model_name", type=str, required=True, choices=["zipvoice", "zipvoice_distill"])
-    parser.add_argument("--trt_engine_path", type=str, required=True, help="Path to the TensorRT engine.")
+    parser.add_argument("--model_name", type=str, required=True, choices=["zipvoice_dialog"])
+    parser.add_argument("--trt_engine_path", type=str, default=None, help="Path to the TensorRT engine.")
     parser.add_argument("--reference_audio_sample_rate", type=int, default=16000)
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--max_batch_size", type=int, default=4)
@@ -259,8 +258,8 @@ def main():
     model = ZipVoiceModel(
         model_dir=args.model_dir,
         model_name=args.model_name,
-        trt_engine_path=args.trt_engine_path,
         reference_audio_sample_rate=args.reference_audio_sample_rate,
+        trt_engine_path=args.trt_engine_path,
         use_speaker_cache=args.use_speaker_cache,
         prompt_text=args.prompt_text,
         prompt_audio=args.prompt_audio,
@@ -270,7 +269,7 @@ def main():
     with Triton(config=config) as triton:
         if args.use_speaker_cache:
             triton.bind(
-                model_name="zipvoice",
+                model_name="zipvoice_dialog",
                 infer_func=model.generate_with_speaker_cache,
                 inputs=[
                     Tensor(name="target_text", dtype=np.object_, shape=(1,)),
@@ -285,7 +284,7 @@ def main():
             )
         else:
             triton.bind(
-                model_name="zipvoice",
+                model_name="zipvoice_dialog",
                 infer_func=model,
                 inputs=[
                     Tensor(name="reference_text", dtype=np.object_, shape=(1,)),

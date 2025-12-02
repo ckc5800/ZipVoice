@@ -1,0 +1,31 @@
+# Core Deep Learning
+torch==2.7.1+cu118
+torchaudio==2.7.1+cu118
+numpy==2.1.2
+
+# Model & Data Handling
+huggingface_hub==1.1.7
+safetensors==0.7.0
+lhotse==1.32.1
+
+# Audio Processing
+vocos==0.1.0
+pydub==0.25.1
+soundfile==0.13.1  # API 서버에서 오디오 처리용
+
+# Text Processing & Tokenization
+cn2an==0.5.23
+inflect==7.5.0
+jieba==0.42.1
+piper_phonemize==1.3.0
+pypinyin==0.55.0
+
+# Optional: Performance optimization (k2는 환경에 따라 별도 설치)
+# k2  # Swoosh 연산 최적화용, 없어도 추론 가능 (PyTorch fallback)
+
+# Serving
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20  # 파일 업로드
+pyyaml==6.0.2  # 설정 파일 관리
+# tritonclient[http]  # Triton 클라이언트 검증용
