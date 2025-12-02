@@ -47,6 +47,8 @@ import json
 import logging
 import os
 from pathlib import Path
+import pathlib
+pathlib.PosixPath = pathlib.WindowsPath
 from typing import List, Optional, Union
 
 import numpy as np
@@ -58,7 +60,7 @@ from lhotse.utils import fix_random_seed
 from vocos import Vocos
 
 from zipvoice.models.zipvoice_dialog import ZipVoiceDialog, ZipVoiceDialogStereo
-from zipvoice.tokenizer.tokenizer import DialogTokenizer
+from zipvoice.tokenizer.tokenizer import EspeakTokenizer
 from zipvoice.utils.checkpoint import load_checkpoint
 from zipvoice.utils.common import AttributeDict, str2bool
 from zipvoice.utils.feature import VocosFbank
@@ -95,7 +97,7 @@ def get_parser():
     parser.add_argument(
         "--model-dir",
         type=str,
-        default=None,
+        default="D:/12-02/espeak",
         help="The model directory that contains model checkpoint, configuration "
         "file model.json, and tokens file tokens.txt. Will download pre-trained "
         "checkpoint from huggingface if not specified.",
@@ -104,7 +106,7 @@ def get_parser():
     parser.add_argument(
         "--checkpoint-name",
         type=str,
-        default="model.pt",
+        default="epoch-91.pt",
         help="The name of model checkpoint.",
     )
 
@@ -190,7 +192,7 @@ def get_parser():
     parser.add_argument(
         "--silence-wav",
         type=str,
-        default="assets/silence.wav",
+        default="assets/SPK066KBSCU021F003.wav",
         help="Path of the silence wav file, used in two-channel generation "
         "with single-channel prompts",
     )
@@ -251,7 +253,7 @@ def generate_sentence_raw_evaluation(
     text: str,
     model: torch.nn.Module,
     vocoder: torch.nn.Module,
-    tokenizer: DialogTokenizer,
+    tokenizer: EspeakTokenizer,
     feature_extractor: VocosFbank,
     device: torch.device,
     num_step: int = 16,
@@ -394,7 +396,7 @@ def generate_sentence(
     text: str,
     model: torch.nn.Module,
     vocoder: torch.nn.Module,
-    tokenizer: DialogTokenizer,
+    tokenizer: EspeakTokenizer,
     feature_extractor: VocosFbank,
     device: torch.device,
     num_step: int = 16,
@@ -622,7 +624,7 @@ def generate_sentence_stereo_raw_evaluation(
     text: str,
     model: torch.nn.Module,
     vocoder: torch.nn.Module,
-    tokenizer: DialogTokenizer,
+    tokenizer: EspeakTokenizer,
     feature_extractor: VocosFbank,
     device: torch.device,
     num_step: int = 16,
@@ -789,7 +791,7 @@ def generate_sentence_stereo(
     text: str,
     model: torch.nn.Module,
     vocoder: torch.nn.Module,
-    tokenizer: DialogTokenizer,
+    tokenizer: EspeakTokenizer,
     feature_extractor: VocosFbank,
     device: torch.device,
     num_step: int = 16,
@@ -1046,7 +1048,7 @@ def generate_list(
     test_list: str,
     model: torch.nn.Module,
     vocoder: torch.nn.Module,
-    tokenizer: DialogTokenizer,
+    tokenizer: EspeakTokenizer,
     feature_extractor: VocosFbank,
     device: torch.device,
     num_step: int = 16,
@@ -1066,7 +1068,7 @@ def generate_list(
     total_t_vocoder = []
     total_wav_seconds = []
 
-    with open(test_list, "r") as fr:
+    with open(test_list, "r", encoding="utf-8") as fr:
         lines = fr.readlines()
 
     for i, line in enumerate(lines):
@@ -1081,9 +1083,11 @@ def generate_list(
                 text,
             ) = items
             prompt_text = f"[S1]{prompt_text_1}[S2]{prompt_text_2}"
+            prompt_text = "브란덴부르크 주에서도 서식하며 개체수를 늘려가고 있습니다"
             prompt_wav = [prompt_wav_1, prompt_wav_2]
         elif len(items) == 4:
             wav_name, prompt_text, prompt_wav, text = items
+            prompt_text = "브란덴부르크 주에서도 서식하며 개체수를 늘려가고 있습니다"
         else:
             raise ValueError(f"Invalid line: {line}")
         assert text.startswith("[S1]")
@@ -1193,13 +1197,11 @@ def main():
             HUGGINGFACE_REPO, filename=f"{MODEL_DIR[params.model_name]}/tokens.txt"
         )
 
-    tokenizer = DialogTokenizer(token_file=token_file)
+    tokenizer = EspeakTokenizer(token_file=token_file, lang="en-us")
 
     tokenizer_config = {
         "vocab_size": tokenizer.vocab_size,
         "pad_id": tokenizer.pad_id,
-        "spk_a_id": tokenizer.spk_a_id,
-        "spk_b_id": tokenizer.spk_b_id,
     }
 
     with open(model_config, "r") as f:

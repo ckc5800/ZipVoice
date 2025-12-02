@@ -121,7 +121,7 @@ def get_parser():
     parser.add_argument(
         "--model-dir",
         type=str,
-        default=None,
+        default="D:/12-02/espeak",
         help="The model directory that contains model checkpoint, configuration "
         "file model.json, and tokens file tokens.txt. Will download pre-trained "
         "checkpoint from huggingface if not specified.",
@@ -130,7 +130,7 @@ def get_parser():
     parser.add_argument(
         "--checkpoint-name",
         type=str,
-        default="model.pt",
+        default="epoch-91.pt",
         help="The name of model checkpoint.",
     )
 
@@ -145,7 +145,7 @@ def get_parser():
     parser.add_argument(
         "--tokenizer",
         type=str,
-        default="emilia",
+        default="espeak",
         choices=["emilia", "libritts", "espeak", "simple"],
         help="Tokenizer type.",
     )

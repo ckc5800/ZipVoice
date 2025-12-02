@@ -112,17 +112,9 @@ class ZipVoiceDialog(ZipVoice):
 
         self.spk_a_id = spk_a_id
         self.spk_b_id = spk_b_id
-        self.spk_embed = nn.Embedding(2, feat_dim)
-        torch.nn.init.normal_(self.spk_embed.weight, mean=0, std=0.1)
 
-    def extract_spk_indices(self, tensor):
-        turn_mask = ((tensor == self.spk_a_id) | (tensor == self.spk_b_id)).long()
-        turn_counts = turn_mask.cumsum(dim=1)
-        spk_mask = turn_counts % 2
-        spk_mask = torch.where(tensor == self.pad_id, -1, spk_mask)
-        spk_a_indices = torch.where(spk_mask == 0)
-        spk_b_indices = torch.where(spk_mask == 1)
-        return spk_a_indices, spk_b_indices
+
+
 
     def forward_text_embed(
         self,
@@ -141,7 +133,6 @@ class ZipVoiceDialog(ZipVoice):
         )
         tokens_padded = pad_labels(tokens, pad_id=self.pad_id, device=device)  # (B, S)
         embed = self.embed(tokens_padded)  # (B, S, C)
-        spk_a_indices, spk_b_indices = self.extract_spk_indices(tokens_padded)
         tokens_lens = torch.tensor(
             [len(token) for token in tokens], dtype=torch.int64, device=device
         )
@@ -150,12 +141,6 @@ class ZipVoiceDialog(ZipVoice):
         embed = self.text_encoder(
             x=embed, t=None, padding_mask=tokens_padding_mask
         )  # (B, S, C)
-        embed[spk_a_indices] += self.spk_embed(torch.tensor(0, device=device)).to(
-            embed.dtype
-        )
-        embed[spk_b_indices] += self.spk_embed(torch.tensor(1, device=device)).to(
-            embed.dtype
-        )
         return embed, tokens_lens
 
     def forward(
