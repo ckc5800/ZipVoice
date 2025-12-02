@@ -16,6 +16,11 @@ COPY requirements_docker.txt /workspace/
 RUN pip install --no-cache-dir piper_phonemize -f https://k2-fsa.github.io/icefall/piper_phonemize.html
 RUN pip install --no-cache-dir -r requirements_docker.txt
 
+# k2 설치 (베이스 이미지의 PyTorch/CUDA 버전에 맞춰서)
+# 베이스 이미지가 PyTorch 2.5/CUDA 12.1이므로 호환 버전 설치
+RUN pip install --no-cache-dir k2 -f https://k2-fsa.github.io/k2/cuda.html || \
+    echo "k2 설치 실패 - PyTorch fallback 사용"
+
 # nvidia-pytriton 설치
 RUN pip install --no-cache-dir nvidia-pytriton==0.5.11
 

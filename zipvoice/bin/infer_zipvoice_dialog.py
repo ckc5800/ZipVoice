@@ -47,8 +47,14 @@ import json
 import logging
 import os
 from pathlib import Path
+
+# Patch for pathlib on Windows only
+import sys
 import pathlib
-pathlib.PosixPath = pathlib.WindowsPath
+if sys.platform == 'win32':
+    pathlib.PosixPath = pathlib.WindowsPath
+
+import soundfile as sf
 from typing import List, Optional, Union
 
 import numpy as np
@@ -613,7 +619,9 @@ def generate_sentence(
         "rtf_vocoder": rtf_vocoder,
     }
 
-    torchaudio.save(save_path, final_wav.cpu(), sample_rate=sampling_rate)
+    # Save with soundfile to avoid torchaudio backend issues
+    wav_numpy = final_wav.squeeze().cpu().numpy()
+    sf.write(save_path, wav_numpy, sampling_rate)
     return metrics
 
 

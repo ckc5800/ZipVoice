@@ -1,10 +1,15 @@
-# Docker용 의존성 (베이스 이미지에 PyTorch 포함)
-# torch, torchaudio는 베이스 이미지에서 제공됨
+# Docker용 의존성
+# 베이스 이미지: nvidia/pytorch:24.11-py3 (PyTorch/CUDA 포함)
 
-numpy==2.1.2
+--find-links https://k2-fsa.github.io/icefall/piper_phonemize.html
+
+# PyTorch는 베이스 이미지에 포함
+# torch, torchaudio, torchvision
+
+numpy==2.3.5
 
 # Model & Data Handling
-huggingface_hub==1.1.7
+huggingface_hub==0.23.0
 safetensors==0.7.0
 lhotse==1.32.1
 
@@ -19,6 +24,14 @@ inflect==7.5.0
 jieba==0.42.1
 pypinyin==0.55.0
 # piper_phonemize는 Dockerfile에서 별도 설치
+
+# Additional dependencies
+setuptools<81
+librosa
+transformers
+tokenizers==0.15.1
+
+# k2는 베이스 이미지의 torch/cuda와 호환되는 버전으로 Dockerfile에서 별도 설치
 
 # Serving
 fastapi==0.115.5

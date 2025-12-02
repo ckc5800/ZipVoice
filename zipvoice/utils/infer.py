@@ -3,6 +3,7 @@ from typing import List
 import numpy as np
 import torch
 import torchaudio
+import soundfile as sf
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence, split_on_silence
 
@@ -249,7 +250,24 @@ def load_prompt_wav(prompt_wav: str, sampling_rate: int):
         Loaded prompt waveform with target sampling rate,
         PyTorch tensor of shape (C, T)
     """
-    prompt_wav, prompt_sampling_rate = torchaudio.load(prompt_wav)
+    # Use soundfile directly to avoid torchaudio backend issues
+    try:
+        wav, sr = sf.read(prompt_wav)
+        # Convert to float32
+        wav = wav.astype(np.float32)
+        
+        # Handle channels: (T, C) -> (C, T) or (T,) -> (1, T)
+        if wav.ndim == 1:
+            wav = wav[np.newaxis, :]
+        else:
+            wav = wav.T
+            
+        prompt_wav = torch.from_numpy(wav)
+        prompt_sampling_rate = sr
+        
+    except Exception as e:
+        print(f"Warning: Failed to load with soundfile ({e}), trying torchaudio...")
+        prompt_wav, prompt_sampling_rate = torchaudio.load(prompt_wav)
 
     if prompt_sampling_rate != sampling_rate:
         resampler = torchaudio.transforms.Resample(
